@@ -1,7 +1,7 @@
 # Dionaea Dockerfile by MO 
 #
-# VERSION 0.51
-FROM ubuntu:14.04.2
+# VERSION 0.52
+FROM ubuntu:14.04.3
 MAINTAINER MO
 
 # Setup apt
