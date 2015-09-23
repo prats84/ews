@@ -7,7 +7,7 @@ import os
 import time
 import ConfigParser
 import hashlib
-from linecache import getline
+from linecache import getline, clearcache
 from datetime import datetime
 from lxml import etree
 
@@ -28,7 +28,7 @@ import fnmatch
 
 
 name = "EWS Poster"
-version = "v1.7.7b"
+version = "v1.8.0b"
 
 
 def ewswebservice(ems):
@@ -329,7 +329,7 @@ def glastopfv3():
     # is sqlitedb exist ?
 
     if os.path.isfile(HONEYPOT["sqlitedb"]) is False:
-        logme(MODUL,"[ERROR] Missing sqlitedb file " + HONEYPOT["sqlitedb"] + ". Abort !",("P3","LOG"),ECFG)
+        logme(MODUL,"[INFO] Missing sqlitedb file " + HONEYPOT["sqlitedb"] + ". Skip !",("P3","LOG"),ECFG)
         return
 
     # open database
@@ -345,7 +345,7 @@ def glastopfv3():
     maxid = c.fetchone()["max(id)"]
 
     if maxid is None:
-        logme(MODUL,"[ERROR] No entry's in Glastopf Database. Abort!",("P2","LOG"),ECFG)
+        logme(MODUL,"[INFO] No entry's in Glastopf Database. Skip !",("P2","LOG"),ECFG)
         return
 
     imin, imax = calcminmax(MODUL,int(countme(MODUL,'sqliteid',-1,ECFG)),int(maxid),ECFG)
@@ -389,12 +389,11 @@ def glastopfv3():
 
         REQUEST = {
                     "description" : "WebHoneypot : Glastopf v3.1",
-                    "url"         : urllib.quote(row["request_url"])
+                    "url"         : urllib.quote(row["request_url"].encode('ascii', 'ignore'))
                   }
 
         if "request_raw" in  row.keys() and len(row["request_raw"]) > 0:
-            #REQUEST["raw"] = base64.standard_b64encode(row["request_raw"])
-            REQUEST["raw"] = base64.encodestring(row["request_raw"])
+            REQUEST["raw"] = base64.encodestring(row["request_raw"].encode('ascii', 'ignore'))
 
         if "filename" in  row.keys() and row["filename"] != None:
            error,malwarefile = malware(HONEYPOT["malwaredir"],row["filename"],ECFG["del_malware_after_send"])
@@ -478,7 +477,7 @@ def glastopfv2():
     maxid = c.fetchone()["max(id)"]
 
     if maxid is None:
-        logme(MODUL,"[ERROR] No entry's in Glastopf Database. Abort!",("P2","LOG"),ECFG)
+        logme(MODUL,"[INFO] No entry's in Glastopf Database. Skip!",("P2","LOG"),ECFG)
         return
 
     imin, imax = calcminmax(MODUL,int(countme(MODUL,'sqliteid',-1,ECFG)),int(maxid),ECFG)
@@ -599,7 +598,7 @@ def kippo():
     maxid = c.fetchone()["max(id)"]
 
     if maxid is None:
-        logme(MODUL,"[ERROR] No entry's in Kippo Database. Abort!",("P2","LOG"),ECFG)
+        logme(MODUL,"[INFO] No entry's in Kippo Database. Skip!",("P2","LOG"),ECFG)
         return
 
     imin, imax = calcminmax(MODUL,int(countme(MODUL,'sqliteid',-1,ECFG)),int(maxid),ECFG)
@@ -712,7 +711,7 @@ def dionaea():
     maxid = c.fetchone()["max(connection)"]
 
     if maxid is None:
-        logme(MODUL,"[ERROR] No entry's in Dionaea Database. Abort!",("P2","LOG"),ECFG)
+        logme(MODUL,"[INFO] No entry's in Dionaea Database. Skip !",("P2","LOG"),ECFG)
         return
 
     imin, imax = calcminmax(MODUL,int(countme(MODUL,'sqliteid',-1,ECFG)),int(maxid),ECFG)
@@ -768,7 +767,7 @@ def dionaea():
            if error == 0:
                REQUEST["binary"] = malwarefile
            else:
-               logme(MODUL,"Mission Malwarefile %s" % row["filename"] ,("P1","LOG"),ECFG)
+               logme(MODUL,"Mission Malwarefile %s" % check[0] ,("P1","LOG"),ECFG)
 
         # Collect additional Data
 
@@ -868,7 +867,7 @@ def honeytrap():
             else:
                 date , time , _ , protocol, source, dest, md5, _ = line.split(" ",7)
 
-            # Prepair and collect Alert Data
+            #  Prepair and collect Alert Data
 
             DATA =    {
                         "aid"       : HONEYPOT["nodeid"],
@@ -918,6 +917,8 @@ def honeytrap():
             if ECFG["a.verbose"] is True:
                 verbosemode(MODUL,DATA,REQUEST,ADATA)
 
+    # Cleaning linecache
+    clearcache()
 
     if int(esm.xpath('count(//Alert)')) > 0:
         sendews(esm)
@@ -1010,6 +1011,8 @@ def rdpdetect():
             if ECFG["a.verbose"] is True:
                 verbosemode(MODUL,DATA,REQUEST,ADATA)
 
+    # Cleaning linecache
+    clearcache()
 
     if int(esm.xpath('count(//Alert)')) > 0:
         sendews(esm)
@@ -1037,29 +1040,31 @@ if __name__ == "__main__":
         logme(MODUL,"Another Instance is running !",("P1"),ECFG)
         logme(MODUL,"EWSrun finish.",("P1","EXIT"),ECFG)
 
+    while True:
 
-    if ECFG["a.daycounter"] is True:
-        daycounterreset(lock,ECFG)
+        if ECFG["a.daycounter"] is True:
+            daycounterreset(lock,ECFG)
 
-    if ECFG["a.ewsonly"] is False:
-        sender()
+        if ECFG["a.ewsonly"] is False:
+            sender()
 
-    if readonecfg("GLASTOPFV3","glastopfv3",ECFG["cfgfile"]).lower() == "true":
-        glastopfv3()
 
-    if readonecfg("GLASTOPFV2","glastopfv2",ECFG["cfgfile"]).lower() == "true":
-        glastopfv2()
+        for i in ("glastopfv3", "glastopfv2", "kippo", "dionaea", "honeytrap", "rdpdetect"):
 
-    if readonecfg("KIPPO","kippo",ECFG["cfgfile"]).lower() == "true":
-        kippo()
+            if ECFG["a.modul"]:
+                if ECFG["a.modul"] == i:
+                    if readonecfg(i.upper(),i,ECFG["cfgfile"]).lower() == "true":
+                        eval(i+'()')
+                        break
+                else:
+                    continue
 
-    if readonecfg("DIONAEA","dionaea",ECFG["cfgfile"]).lower() == "true":
-        dionaea()
+            if readonecfg(i.upper(),i,ECFG["cfgfile"]).lower() == "true":
+               eval(i+'()')
 
-    if readonecfg("HONEYTRAP","honeytrap",ECFG["cfgfile"]).lower() == "true":
-        honeytrap()
-
-    if readonecfg("RDPDETECT","rdpdetect",ECFG["cfgfile"]).lower() == "true":
-        rdpdetect()
-
-    logme(MODUL,"EWSrun finish.",("P1"),ECFG)
+        if int(ECFG["a.loop"]) == 0:
+            logme(MODUL,"EWSrun finish.",("P1"),ECFG)
+            break
+        else:
+            logme(MODUL,"Sleeping for %s seconds ...." % ECFG["a.loop"] ,("P1"),ECFG)
+            time.sleep(int(ECFG["a.loop"]))

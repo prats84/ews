@@ -17,6 +17,8 @@ def ecfg(name,version):
     parser.add_argument("-c","--configpath", help="Load configuration file from Path")
     parser.add_argument("-v","--verbose", help="set output verbosity",action="store_true")
     parser.add_argument("-d","--debug", help="set output debug",action="store_true")
+    parser.add_argument("-l","--loop", help="Go in endless loop. Set {xx} for seconds to wait for next loop", type=int, default=0, action="store")
+    parser.add_argument("-m","--modul", help="only send alerts for this modul", choices=['glastopfv3','glastopfv2','kippo','dioneae','honeytrap','rdpdetect'],action="store")
     parser.add_argument("-s","--silent", help="silent mode without output",action="store_true")
     parser.add_argument("-S","--sendonly", help="only send unsend alerts",action="store_true")
     parser.add_argument("-E","--ewsonly", help="only generate ews alerts files",action="store_true")
@@ -25,11 +27,16 @@ def ecfg(name,version):
 
     args = parser.parse_args()
 
+    if args.loop:
+        ECFG["a.loop"] = args.loop
+    else:
+        ECFG["a.loop"] = 0
+
     if args.verbose:
         ECFG["a.verbose"] = True
     else:
         ECFG["a.verbose"] = False
- 
+
     if args.debug:
         ECFG["a.debug"] = True
     else:
@@ -62,6 +69,11 @@ def ecfg(name,version):
             logme(MODUL,"ConfigPath %s did not exist. Abort !" % (args.configpath),("P1","EXIT"),ECFG)
     else:
         ECFG["path2"] = ""
+
+    if args.modul and args.modul == "glastopfv3" or args.modul == "glastopfv2" or args.modul == "kippo" or args.modul == "dioneae" or args.modul == "honeytrap" or args.modul == "rdpdetect":
+        ECFG["a.modul"] = args.modul
+    else:
+        ECFG["a.modul"] = ""
 
     # say hello
 
